@@ -26,11 +26,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: 创建 GitHub Release
+      - name: 检查版本并准备安装文件
         shell: bash
         env:
           VERSION_INPUT: ${{ inputs.version }}
-          RELEASE_NOTES: ${{ inputs.release_notes }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -44,38 +43,49 @@ jobs:
 
           tag="v${version}"
           plugin="floating_audio_${tag}.plugin"
-          zip="floating_audio_${tag}.zip"
+          archive="floating_audio_${tag}.zip"
 
           if [[ ! -f "$plugin" ]]; then
-            echo "::error::找不到插件文件：$plugin"
+            echo "::error::插件文件不存在：$plugin"
             exit 1
           fi
 
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "::error::发行版 $tag 已存在"
+            echo "::error::发行版已存在：$tag"
             exit 1
           fi
 
-          files=("$plugin")
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "PLUGIN=$plugin" >> "$GITHUB_ENV"
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
 
-          if [[ -f "$zip" ]]; then
-            files+=("$zip")
-            echo "已找到 ZIP 安装包：$zip"
-          else
-            echo "未找到 ZIP 安装包，仅上传插件"
-          fi
+          rm -f "$archive"
+          zip -j "$archive" "$plugin"
+
+          echo "插件及 ZIP 安装包准备完成"
+
+      - name: 创建 GitHub Release
+        shell: bash
+        env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
 
           printf '%s\n' "$RELEASE_NOTES" > release-notes.md
 
           flags=()
-          if [[ "$version" == *-* ]]; then
+
+          if [[ "$VERSION" == *-* ]]; then
             flags+=(--prerelease)
           fi
 
-          gh release create "$tag" "${files[@]}" \
-            --title "AyuGram 漂浮音频 ${tag}" \
+          gh release create "$TAG" \
+            "$PLUGIN" "$ARCHIVE" \
+            --title "AyuGram 漂浮音频 ${TAG}" \
             --notes-file release-notes.md \
             --target "$GITHUB_SHA" \
             "${flags[@]}"
 
-          echo "发行版 ${tag} 发布成功"
+          echo "发行版 ${TAG} 创建成功"
