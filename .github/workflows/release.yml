@@ -1,0 +1,67 @@
+
+name: 发布插件版本
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号，例如 0.11.0-beta.2"
+        required: true
+        type: string
+      release_notes:
+        description: "更新说明"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 获取仓库文件
+        uses: actions/checkout@v4
+
+      - name: 创建 GitHub Release
+        shell: bash
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          version="${VERSION_INPUT#v}"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::版本号格式不正确"
+            exit 1
+          fi
+
+          tag="v${version}"
+          file="floating_audio_${tag}.plugin"
+
+          if [[ ! -f "$file" ]]; then
+            echo "::error::找不到插件文件：$file"
+            exit 1
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::发行版 $tag 已存在"
+            exit 1
+          fi
+
+          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+
+          flags=()
+          if [[ "$version" == *-* ]]; then
+            flags+=(--prerelease)
+          fi
+
+          gh release create "$tag" "$file" \
+            --title "AyuGram 漂浮音频 ${tag}" \
+            --notes-file release-notes.md \
+            --target "$GITHUB_SHA" \
+            "${flags[@]}"
