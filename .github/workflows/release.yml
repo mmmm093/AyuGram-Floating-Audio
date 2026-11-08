@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号，例如 0.11.0-beta.2"
+        description: "版本号，例如 0.11.0-beta.3"
         required: true
         type: string
       release_notes:
@@ -22,7 +22,9 @@ jobs:
 
     steps:
       - name: 获取仓库文件
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: 创建 GitHub Release
         shell: bash
@@ -41,16 +43,26 @@ jobs:
           fi
 
           tag="v${version}"
-          file="floating_audio_${tag}.plugin"
+          plugin="floating_audio_${tag}.plugin"
+          zip="floating_audio_${tag}.zip"
 
-          if [[ ! -f "$file" ]]; then
-            echo "::error::找不到插件文件：$file"
+          if [[ ! -f "$plugin" ]]; then
+            echo "::error::找不到插件文件：$plugin"
             exit 1
           fi
 
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::发行版 $tag 已存在"
             exit 1
+          fi
+
+          files=("$plugin")
+
+          if [[ -f "$zip" ]]; then
+            files+=("$zip")
+            echo "已找到 ZIP 安装包：$zip"
+          else
+            echo "未找到 ZIP 安装包，仅上传插件"
           fi
 
           printf '%s\n' "$RELEASE_NOTES" > release-notes.md
@@ -60,8 +72,10 @@ jobs:
             flags+=(--prerelease)
           fi
 
-          gh release create "$tag" "$file" \
+          gh release create "$tag" "${files[@]}" \
             --title "AyuGram 漂浮音频 ${tag}" \
             --notes-file release-notes.md \
             --target "$GITHUB_SHA" \
             "${flags[@]}"
+
+          echo "发行版 ${tag} 发布成功"
