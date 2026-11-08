@@ -6,13 +6,13 @@ AyuGram Floating Audio
 
 ## 📦 当前版本
 
-**v0.11.0-beta.1**
+**v0.11.0-beta.2**
 
 当前为测试版本，可能仍存在尚未发现的 Bug、兼容性问题或性能问题。
 
 ## 🔧 项目文件
 
-- `floating_audio_v0.11.0-beta.1.plugin` — 插件文件
+- `floating_audio_v0.11.0-beta.2.plugin` — 插件文件
 - `变更与安装说明.md` — 版本变更记录和安装说明
 - `读取日志覆盖报告.py` — 日志分析辅助工具
 
